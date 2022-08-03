@@ -8,8 +8,6 @@ from torch_scatter import scatter
 from torch_geometric.utils import softmax
 args = config.parse()
 device = torch.device('cuda:'+args.cuda if torch.cuda.is_available() else 'cpu')
-device2 = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
-
 def glorot(tensor):
     if tensor is not None:
         stdv = math.sqrt(6.0 / (tensor.size(-2) + tensor.size(-1)))
@@ -50,8 +48,22 @@ class hhgnnConv(nn.Module):
         self.edge_input_length = args.edge_input_length
         self.node_input_length = args.node_input_length
 
+        self.V_raw_index_type= (args.V_raw_index_type).to(device)
+
         self.V_class=(args.V_class).to(device)
         self.E_class=(args.E_class).to(device)
+        self.V_class_index=(args.V_class_index).to(device)
+        self.E_class_index=(args.E_class_index).to(device)
+
+        self.V_class_index_0 =(args.V_class_index_0).to(device)
+        self.V_class_index_1 =(args.V_class_index_1).to(device)
+        self.V_class_index_2 =(args.V_class_index_2).to(device)
+        self.V_class_index_3 =(args.V_class_index_3).to(device)
+        self.E_class_index_0 =(args.E_class_index_0).to(device)
+        self.E_class_index_1 =(args.E_class_index_1).to(device)
+        self.E_class_index_2 =(args.E_class_index_2).to(device)
+        self.E_class_index_3 =(args.E_class_index_3).to(device)
+
 
         self.relu = nn.ReLU()
 
@@ -69,83 +81,48 @@ class hhgnnConv(nn.Module):
         glorot(self.att_e_occurrence)
         glorot(self.att_e_self)
 
-    def xiangcheng(self,h,index_class,h_x):
-        h_x=torch.cat(h_x,dim=0)
-        index_class=torch.unsqueeze(index_class,1)
-        index_class = torch.unsqueeze(index_class, 1)
-        index_class_2=index_class.repeat(1,self.heads,self.out_channels)
-        h_x_2=torch.gather(h_x,0,index_class_2)
-        output=(h * h_x_2).sum(-1)
-        return output
-
     def forward(self, X, vertex, edges):
         H, C, N = self.heads, self.out_channels, X.shape[0]
-
         X0 = self.W(X)
+
         X = X0.view(N, H, C)
         Xve = X[vertex]
+        X = Xve
+        X_e_0 = (torch.index_select(X, 0, self.E_class_index_0) * self.att_e_friend).sum(-1)
+        X_e_1 = (torch.index_select(X, 0, self.E_class_index_1) * self.att_e_visit).sum(-1)
+        X_e_2 = (torch.index_select(X, 0, self.E_class_index_2) * self.att_e_occurrence).sum(-1)
+        X_e_3 = (torch.index_select(X, 0, self.E_class_index_3) * self.att_e_self).sum(-1)
+        X_e = torch.cat((X_e_0, X_e_1, X_e_2, X_e_3), 0)
+        beta_v = torch.gather(X_e, 0, self.E_class_index)
+        beta = self.leaky_relu(beta_v)
+        beta = softmax(beta, edges, num_nodes=self.edge_num)
+        beta = beta.unsqueeze(-1)
+        Xe = Xve * beta
+        Xe = (scatter(Xe, edges, dim=0, reduce='sum', dim_size=self.edge_num))
 
-        X=Xve
-        beta_v=self.xiangcheng(X, self.E_class, [self.att_e_friend,self.att_e_visit,self.att_e_occurrence,self.att_e_self])
-        beta =self.leaky_relu(  beta_v)
-        beta=softmax(beta,edges,num_nodes=self.edge_num)
-        beta=beta.unsqueeze(-1)
-        Xe=Xve*beta
-        Xe=(scatter(Xe,edges,dim=0,reduce='sum',dim_size=self.edge_num))
-        Xe2=Xe
-        Xe=Xe2[edges]
-        Xe_2=Xe
-        alpha_e=self.xiangcheng(Xe_2,self.V_class,[self.att_v_user,self.att_v_poi,self.att_v_class ,self.att_v_time])
+        Xe = Xe[edges]
+        Xe_2 = Xe
+        Xe_2_0 = (torch.index_select(Xe_2, 0, self.V_class_index_0) * self.att_v_user).sum(-1)
+        Xe_2_1 = (torch.index_select(Xe_2, 0, self.V_class_index_1) * self.att_v_poi).sum(-1)
+        Xe_2_2 = (torch.index_select(Xe_2, 0, self.V_class_index_2) * self.att_v_class).sum(-1)
+        Xe_2_3 = (torch.index_select(Xe_2, 0, self.V_class_index_3) * self.att_v_time).sum(-1)
+        Xe_2 = torch.cat((Xe_2_0, Xe_2_1, Xe_2_2, Xe_2_3), 0)
+        alpha_e = torch.gather(Xe_2, 0, self.V_class_index)
         alpha = self.leaky_relu(alpha_e)
-        alpha = softmax(alpha, vertex, num_nodes = N)
+        alpha = softmax(alpha, vertex, num_nodes=N)
         alpha = alpha.unsqueeze(-1)
         Xev = Xe * alpha
         Xv = scatter(Xev, vertex, dim=0, reduce='sum', dim_size=N)  # [N, H, C]
-        X = Xv
-        X = X.view(N, H * C)
-        if self.skip_sum:
-            X = X + X0
-            # NOTE: concat heads or mean heads?
-        # NOTE: skip concat here?
-        return X
+        Xv = Xv.view(N, H * C)
+        Xv = self.relu(Xv)
 
-class HHGNN_multi(nn.Module):
-    def __init__(self, args, nfeat, nhid, out_dim,  nhead, V, E,  node_input_dim,edge_type,node_type):
-        super().__init__()
-        self.conv_out = hhgnnConv(args, nhid * nhead, out_dim, heads=args.out_nhead,device=device2).to(device2)
-        self.conv_in = hhgnnConv(args, nfeat, nhid, heads=nhead, device=device).to(device)
-        self.V = V
-        self.E = E
-        act = {'relu': nn.ReLU(), 'prelu': nn.PReLU()}
-        self.act = act[args.activation]
-        self.node_input_dim=node_input_dim
-        self.edge_type=edge_type
-        self.node_type=node_type
-        self.relu=nn.ReLU().to(device2)
-        self.sigmoid=nn.Sigmoid()
-        self.tanh=nn.Tanh()
-        self.lin_out1=nn.Linear( out_dim*args.out_nhead,out_dim,bias=True).to(device2)
-        self.fc_list_node = nn.ModuleList([nn.Linear(feats_dim, nfeat, bias=True)   for feats_dim in node_input_dim]).to(device)
-    def forward(self,  node_attr):
-        node_feat={}
-        for i in range(len(self.node_type)):
-            node_feat[self.node_type[i]]=self.relu(self.fc_list_node[i](node_attr[self.node_type[i]].to(device)  ))
-        X=[]
-        for i in range(len(self.node_type)):
-            X.append( node_feat[self.node_type[i]])
-        X=torch.cat((X), 0).to(device)
-        V, E = (self.V).to(device) , (self.E).to(device)
-        X=self.conv_in(X, V, E)
-        X = self.conv_out(X.to(device2), V.to(device2), E.to(device2))
-        X = self.relu(X)
-        X=self.lin_out1(X)
-        return  X.to(device)
+        return Xv
 
 class HHGNN(nn.Module):
     def __init__(self, args, nfeat, nhid, out_dim, nhead, V, E, node_input_dim,edge_type,node_type):
 
         super().__init__()
-        self.conv_out = hhgnnConv(args, nhid * nhead, out_dim, heads=args.out_nhead,device=device)
+        self.conv_out = hhgnnConv(args, nhid * nhead, nhid, heads=args.out_nhead,device=device)
         self.conv_in = hhgnnConv(args, nfeat, nhid, heads=nhead, device=device)
         self.V = V
         self.E = E
@@ -155,10 +132,10 @@ class HHGNN(nn.Module):
         self.node_input_dim=node_input_dim
         self.edge_type=edge_type
         self.node_type=node_type
-        self.relu=nn.ReLU().to(device2)
+        self.relu=nn.ReLU()
         self.sigmoid=nn.Sigmoid()
         self.tanh=nn.Tanh()
-        self.lin_out1=nn.Linear( out_dim*args.out_nhead,out_dim,bias=True)
+        self.lin_out1=nn.Linear( nhid *args.out_nhead,out_dim,bias=True)
         self.fc_list_node = nn.ModuleList([nn.Linear(feats_dim, nfeat, bias=True)   for feats_dim in node_input_dim])
 
     def forward(self,  node_attr):
@@ -172,6 +149,5 @@ class HHGNN(nn.Module):
         V, E = (self.V) , (self.E)
         X=self.conv_in(X, V, E)
         X = self.conv_out(X, V, E)
-        X = self.relu(X)
         X=self.lin_out1(X)
         return  X

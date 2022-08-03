@@ -160,7 +160,6 @@ def initialise( G,node_attr , args, node_type,edge_type, unseen=None):
     degV = degV.pow(-0.5)
     degV[degV.isinf()] = 1 # when not added self-loop, some nodes might not be connected with any edge
 
-    V, E = V.to(device), E.to(device)
 
     args.edge_num=max(E)+1
     args.degV = degV.to(device)
@@ -174,6 +173,8 @@ def initialise( G,node_attr , args, node_type,edge_type, unseen=None):
     for i in node_type:
         node_input_dim.append(node_attr[i].shape[1])
     node_input_length = [args.user_number,args.poi_number,args.poi_class_number,args.time_point_number]
+    V_raw_index_type=[0 for i in range(args.user_number)]+ [1 for i in range(args.poi_number)]+[2 for i in range(args.poi_class_number)]+[3 for i in range(args.time_point_number)]
+    args.V_raw_index_type=torch.tensor(V_raw_index_type,dtype=torch.long)
     args.edge_type=edge_type
     args.node_type=node_type
 
@@ -190,42 +191,66 @@ def initialise( G,node_attr , args, node_type,edge_type, unseen=None):
         b= b+ node_input_length[i]
 
     V_class=[]
+    V_class_index_0,V_class_index_1,V_class_index_2,V_class_index_3=[],[],[],[]
     for i in range(V.shape[0]):
         if V[i] <node_input_length_raw[0]:
             V_class.append(0) #user
+            V_class_index_0.append(i)
         elif node_input_length_raw[0]<= V[i] <node_input_length_raw[1]:
             V_class.append(1)#POI
+            V_class_index_1.append(i)
         elif node_input_length_raw[1]<= V[i] <node_input_length_raw[2]:
             V_class.append(2)#POItype
+            V_class_index_2.append(i)
         elif node_input_length_raw[2]<= V[i] <node_input_length_raw[3]:
             V_class.append(3)#timepoint
+            V_class_index_3.append(i)
 
     E_class=[]
+    E_class_index_0,E_class_index_1,E_class_index_2,E_class_index_3=[],[],[],[]
     for i in range(E.shape[0]):
         if E[i]<edge_input_length_raw[0]:
             E_class.append(0) #friend
+            E_class_index_0.append(i)
         elif edge_input_length_raw[0]<=E[i]<edge_input_length_raw[1]:
             E_class.append(1) #check-in
+            E_class_index_1.append(i)
         elif edge_input_length_raw[1]<=E[i]<edge_input_length_raw[2]:
             E_class.append(2)#Trajectory
+            E_class_index_2.append(i)
         elif edge_input_length_raw[2]<=E[i]<edge_input_length_raw[3]:
             E_class.append(3) #self-loop
+            E_class_index_3.append(i)
+
     args.V_class=torch.tensor(V_class,dtype=torch.long)
     args.E_class=torch.tensor(E_class,dtype=torch.long)
 
+    args.V_class_index_0=torch.tensor(V_class_index_0,dtype=torch.long)
+    args.V_class_index_1=torch.tensor(V_class_index_1,dtype=torch.long)
+    args.V_class_index_2=torch.tensor(V_class_index_2,dtype=torch.long)
+    args.V_class_index_3=torch.tensor(V_class_index_3,dtype=torch.long)
+
+    args.E_class_index_0=torch.tensor(E_class_index_0,dtype=torch.long)
+    args.E_class_index_1=torch.tensor(E_class_index_1,dtype=torch.long)
+    args.E_class_index_2=torch.tensor(E_class_index_2,dtype=torch.long)
+    args.E_class_index_3=torch.tensor(E_class_index_3,dtype=torch.long)
+
+    E_class_index=torch.unsqueeze( torch.cat((args.E_class_index_0,args.E_class_index_1,args.E_class_index_2,args.E_class_index_3) ,0),1)
+    args.E_class_index  =E_class_index.repeat(1,nhead)
+    V_class_index=torch.unsqueeze(torch.cat((args.V_class_index_0,args.V_class_index_1,args.V_class_index_2,args.V_class_index_3) ,0) ,1)
+    args.V_class_index= V_class_index.repeat(1,nhead)
+
+    args.V=V
+    args.E=E
+    V, E = V.to(device), E.to(device)
     args.edge_input_length=edge_input_length_raw
     args.node_input_length=node_input_length_raw
 
 
     args.dataset_dict={'hypergraph':G,'n':N,'features':torch.randn(N,args.input_dim)}
 
-    if args.multi_cuda==0:
-        model = HHGNN(args, args.input_dim, nhid, args.out_dim, nhead, V, E, node_input_dim,edge_type,node_type)
-        optimiser = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
-        model.to(device)
-    elif args.multi_cuda==1:
-        model = HHGNN_multi(args, args.input_dim, nhid, args.out_dim, nhead, V, E, node_input_dim,edge_type,node_type)
-        optimiser = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
+    model = HHGNN_multi(args, args.input_dim, nhid, args.out_dim, nhead, V, E, node_input_dim,edge_type,node_type)
+    optimiser = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
     return model, optimiser, G
 
 

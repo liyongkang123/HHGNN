@@ -36,7 +36,6 @@ def parse():
 
     p.add_argument('--negative_K', type=int, default=4, help='negative_K')
     p.add_argument('--cuda', type=str, default='0', help='gpu id to use')
-    p.add_argument('--multi_cuda', type=int, default=0, help='Specifies whether to use two GPU. The default value is 0. If two GPU are used, the value is set to  1')
     p.add_argument('--lam_1', type=int, default=1, help='lam_1')
     p.add_argument('--lam_2', type=int, default=2, help='lam_2')
     p.add_argument('--lam_3', type=int, default=3, help='lam_3')
