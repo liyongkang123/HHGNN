@@ -3,7 +3,7 @@ import torch.optim as optim, torch.nn.functional as F
 import torch_sparse
 import pickle
 import config
-from  model import HHGNN_multi,HHGNN
+from  model import HHGNN
 import random
 from torch_scatter import scatter
 
@@ -249,8 +249,9 @@ def initialise( G,node_attr , args, node_type,edge_type, unseen=None):
 
     args.dataset_dict={'hypergraph':G,'n':N,'features':torch.randn(N,args.input_dim)}
 
-    model = HHGNN_multi(args, args.input_dim, nhid, args.out_dim, nhead, V, E, node_input_dim,edge_type,node_type)
+    model = HHGNN(args, args.input_dim, nhid, args.out_dim, nhead, V, E, node_input_dim, edge_type, node_type)
     optimiser = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
+    model.to(device)
     return model, optimiser, G
 
 
