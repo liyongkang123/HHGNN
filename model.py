@@ -71,7 +71,9 @@ class hhgnnConv(nn.Module):
 
     def xiangcheng(self,h,index_class,h_x):
         h_x=torch.cat(h_x,dim=0)
-        index_class_2=(index_class.t()).repeat(1,self.heads,self.out_channels) .view(-1, self.heads, self.out_channels)
+        index_class=torch.unsqueeze(index_class,1)
+        index_class = torch.unsqueeze(index_class, 1)
+        index_class_2=index_class.repeat(1,self.heads,self.out_channels)
         h_x_2=torch.gather(h_x,0,index_class_2)
         output=(h * h_x_2).sum(-1)
         return output

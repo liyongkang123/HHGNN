@@ -210,8 +210,8 @@ def initialise( G,node_attr , args, node_type,edge_type, unseen=None):
             E_class.append(2)#Trajectory
         elif edge_input_length_raw[2]<=E[i]<edge_input_length_raw[3]:
             E_class.append(3) #self-loop
-    args.V_class=torch.tensor([V_class],dtype=torch.long).to(device)
-    args.E_class=torch.tensor([E_class],dtype=torch.long).to(device)
+    args.V_class=torch.tensor(V_class,dtype=torch.long)
+    args.E_class=torch.tensor(E_class,dtype=torch.long)
 
     args.edge_input_length=edge_input_length_raw
     args.node_input_length=node_input_length_raw
