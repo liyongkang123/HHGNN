@@ -1,5 +1,5 @@
 # HHGNN
-This is  for our CIKM2022 short paper《Heterogeneous Hypergraph Neural Network with SCL for Friend Recommendation in LBSN》
+This is  for our CIKM2022 short paper《Heterogeneous Hypergraph Neural Network for  Friend Recommendation with Human Mobility》
 
 Thank you for your interest in the content of our research. 
 
