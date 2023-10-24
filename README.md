@@ -24,7 +24,7 @@ Before to execute *HHGNN*, it is necessary to install the following packages:
 
 ### Basic Usage
  
-- --run  train.py to train the HHGNN in NYC city.
+- --Please run  train.py to train the HHGNN in NYC city.
 - Due to the huge number of hyperedges, our algorithm needs to occupy a large storage space of GPU. It probably need at least 18G GPU memory for NYC city.
 - You can reduce the GPU memory usage by reducing the number of multi-heads or the dimension of the output layer.
 More adjustable hyperparameters in the config.py file
