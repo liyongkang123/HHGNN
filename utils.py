@@ -90,7 +90,9 @@ def margin_loss(pos_score, neg_score):
 def contrastive_loss(user_emb,g):
     user_emb=user_emb[:args.user_number]
 
-    adj_friend=g.adj(scipy_fmt='coo',)
+    # adj_friend=g.adj(scipy_fmt='coo',)
+    adj_friend = g.adj_external(scipy_fmt='coo', )  # for dgl >1.0.x , use adj_external()
+
     adj_friend=adj_friend.todense()
     row,col=np.diag_indices_from(adj_friend)
     adj_friend[row,col]=1

@@ -18,9 +18,10 @@ Before to execute *HHGNN*, it is necessary to install the following packages:
 - numpy ==1.13.1
 - torch ==1.7.1
 - scikit-learn==1.0.2
-- dgl ==0.7.2
+- dgl == 0.7.2
 - torch-scatter == 2.0.7
 
+【September 11, 2024】The modified code now supports the latest versions of torch and DGL.
 
 ### Basic Usage
  
