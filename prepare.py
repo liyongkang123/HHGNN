@@ -21,20 +21,20 @@ def accuracy(Z, Y):
 def fetch_data(args):
     city=args.city
     print('city name: ',city)
-    read_friend=open(  "Data/"+city+"/friend_list_index.pkl",'rb' )
+    read_friend=open(  "data/"+city+"/friend_list_index.pkl",'rb' )
     friend_edge=pickle.load(read_friend)
     friend_edge_num=len(friend_edge)
     args.friend_edge_num=friend_edge_num
     print("the number of friendship hyperedge in raw dataset is:", friend_edge_num)
     print("the number of friendship hyperedge used for training is:", round(friend_edge_num *args.split))
 
-    visit_poi=open(  "Data/"+city+"/visit_list_edge_tensor.pkl",'rb' )
+    visit_poi=open(  "data/"+city+"/visit_list_edge_tensor.pkl",'rb' )
     visit_edge=pickle.load(visit_poi)
     visit_edge_num=len(visit_edge)
     args.visit_edge_num=visit_edge_num
     print("the number of check-in hyperedge is:", visit_edge_num)
 
-    tra=open( "Data/"+city+"/trajectory_list_index.pkl",'rb')
+    tra=open( "data/"+city+"/trajectory_list_index.pkl",'rb')
     trajectory_edge=pickle.load(tra)
     trajectory_edge_num=len(trajectory_edge)
     args.trajectory_edge_num=trajectory_edge_num
