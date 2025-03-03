@@ -30,6 +30,8 @@ Before to execute *HHGNN*, it is necessary to install the following packages:
 - You can reduce the GPU memory usage by reducing the number of multi-heads or the dimension of the output layer.
 More adjustable hyperparameters in the config.py file
 
+【March 3, 2025】 Please refer to the code implementation in [H3GNN](https://github.com/liyongkang123/H3GNN) to learn more about processing heterogeneous hypergraph data. 
+We provide an updated version of the code that can complete the data preprocessing for a single city within 10 minutes.
 
 We welcome your suggestions and encouragement to help us keep improving.
 And we urge everyone to contribute to the development of the community together.
